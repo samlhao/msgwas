@@ -156,4 +156,11 @@ saveRDS(retina_markers, file = "data/processed/retina_markers.rds")
 markers_top2 <- retina_markers %>%
   group_by(cluster) %>%
   slice_max(n = 2, order_by = avg_log2FC)
+cluster_markers <- retina_markers %>%
+  group_by(cluster) %>%
+  slice_max(n = 1, order_by = avg_log2FC)
 write.csv(x = markers_top2, file = "data/processed/retina_markers.csv")
+
+pdf(file = "figures/retina_featureplot.pdf", width = 10, height = 10)
+FeaturePlot(retina_combined, features = cluster_markers$gene, min.cutoff = "q9")
+dev.off()
