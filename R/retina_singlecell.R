@@ -162,5 +162,7 @@ cluster_markers <- retina_markers %>%
 write.csv(x = markers_top2, file = "data/processed/retina_markers.csv")
 
 pdf(file = "figures/retina_featureplot.pdf", width = 10, height = 10)
-FeaturePlot(retina_combined, features = cluster_markers$gene, min.cutoff = "q9")
+FeaturePlot(retina_combined,
+            features = c("ARL4D","PPEF2","CRABP1","RHO","RP11-184I16.4","IMPG1","PDE6H","PVALB","GRIK1","NEFL","WIF1","TTR","TRPM3","MEG3","PDE6H","PCDH9","CD74","CNTNAP2","SPARCL1","VSX1"),
+            min.cutoff = "q9")
 dev.off()
