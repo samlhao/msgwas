@@ -145,24 +145,28 @@ DefaultAssay(retina_combined) <- "integrated"
 # standard workflow for visualization and clustering
 retina_combined <- ScaleData(retina_combined)
 retina_combined <- RunPCA(retina_combined, npcs = 50)
+
 # determine dimensionality
 retina_combined <- JackStraw(retina_combined, num.replicate = 100)
-retina_combined <- ScoreJackStraw(retina_combined, dims = 1:50)
+retina_combined <- ScoreJackStraw(retina_combined, dims = 1:20)
 pdf(file = "code/msgwas/figures/retina_JackStrawPlot.pdf", width = 11, height = 8)
-JackStrawPlot(retina_combined, dims = 1:50)
+JackStrawPlot(retina_combined, dims = 1:20)
 dev.off()
-# cluster
-retina_combined <- FindNeighbors(retina_combined, reduction = "pca", dims = 1:20)
-# increase
-retina_combined <- FindClusters(retina_combined, resolution = 0.6)
-retina_combined <- RunTSNE(retina_combined, dims = 1:20)
-pdf(file = "figures/tSNE_retina_commongenes.pdf", width = 6, height = 5)
+pdf(file = "code/msgwas/figures/retina_elbowplot.pdf", width = 11, height = 8)
+ElbowPlot(retina_combined, ndims = 50)
+dev.off()
+# cluster with 30 PCs
+retina_combined <- FindNeighbors(retina_combined, reduction = "pca", dims = 1:30)
+# vector of resolutions
+retina_combined <- FindClusters(retina_combined, resolution = c(0.6, 0.8, 1.0, 1.2))
+retina_combined <- RunTSNE(retina_combined, dims = 1:30)
+pdf(file = "code/msgwas/figures/tSNE_retina_pc30.pdf", width = 6, height = 5)
 DimPlot(retina_combined)
 dev.off()
-saveRDS(retina_combined, file = "data/processed/retina_combined_commongenes.rds")
+saveRDS(retina_combined, file = "data/processed/retina_combined_pc30.rds")
 
 # plot by dataset source
-pdf(file = "figures/tSNE_retina_datasource_commongenes.pdf", width = 6, height = 4)
+pdf(file = "code/msgwas/figures/tSNE_retina_datasource_pc30.pdf", width = 6, height = 4)
 DimPlot(retina_combined, reduction = "tsne", group.by = "orig.ident")
 dev.off()
 
