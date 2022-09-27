@@ -55,6 +55,18 @@ pdf(file = "figures/menonSW_vlnplot.pdf", width = 6, height = 4)
 VlnPlot(menonSW_data, features = c("nFeature_RNA","nCount_RNA","percent.mt","percent.rbp"), ncol = 4)
 dev.off()
 
+# quantiles
+luk_nFeatures <- luk_data$nFeature_RNA
+menon10x_nFeatures <- menon10x_data$nFeature_RNA
+menonSW_nFeatures <- menonSW_data$nFeature_RNA
+
+quantile(luk_nFeatures)
+ecdf(luk_nFeatures)(2500)
+quantile(menon10x_nFeatures)
+ecdf(menon10x_nFeatures)(2500)
+quantile(menonSW_nFeatures)
+ecdf(menonSW_nFeatures)(3500)
+
 # no mt data in menon datasets
 # compare gene names
 table(rownames(menon10x_data) %in% rownames(menonSW_data))
@@ -90,8 +102,18 @@ menonSW_data <- menonSW_data[rownames(menonSW_data) %in% common_genes,]
 # luk <- RunPCA(luk, features = VariableFeatures(object = luk))
 # luk <- FindNeighbors(luk, reduction = "pca", dims = 1:20)
 # luk <- FindClusters(luk, resolution = 0.6)
-# pdf(file = "figures/tSNE_lukowski.pdf", width = 6, height = 5)
-# DimPlot(RunTSNE(luk, dims = 1:20))
+# luk <- RunTSNE(luk, dims = 1:20)
+# # pdf(file = "figures/tSNE_lukowski.pdf", width = 6, height = 5)
+# # DimPlot(luk)
+# # dev.off()
+# luk_markers <-FindAllMarkers(luk, only.pos = TRUE,
+#                               min.pct = 0.25, logfc.threshold = 0.25)
+# 
+# pdf(file = "code/msgwas/figures/lukowski_GFAP.pdf", width=11, height=8)
+# FeaturePlot(luk,
+#             features = c("GFAP"),
+#             min.cutoff = "q9",
+#             label = T)
 # dev.off()
 #--------------------------------------
 
@@ -122,9 +144,16 @@ DefaultAssay(retina_combined) <- "integrated"
 
 # standard workflow for visualization and clustering
 retina_combined <- ScaleData(retina_combined)
-# top 20 PCs, matching lukowski method
-retina_combined <- RunPCA(retina_combined, npcs = 20)
+retina_combined <- RunPCA(retina_combined, npcs = 50)
+# determine dimensionality
+retina_combined <- JackStraw(retina_combined, num.replicate = 100)
+retina_combined <- ScoreJackStraw(retina_combined, dims = 1:50)
+pdf(file = "code/msgwas/figures/retina_JackStrawPlot.pdf", width = 11, height = 8)
+JackStrawPlot(retina_combined, dims = 1:50)
+dev.off()
+# cluster
 retina_combined <- FindNeighbors(retina_combined, reduction = "pca", dims = 1:20)
+# increase
 retina_combined <- FindClusters(retina_combined, resolution = 0.6)
 retina_combined <- RunTSNE(retina_combined, dims = 1:20)
 pdf(file = "figures/tSNE_retina_commongenes.pdf", width = 6, height = 5)
@@ -183,10 +212,12 @@ View(retina_markers %>%
 # astrocytes
 View(retina_markers %>%
        filter(gene == 'GFAP'))
+pdf(file = "code/msgwas/figures/astrocyte_markers.pdf", width = 11, height = 8)
 FeaturePlot(retina_combined,
             features = c("GFAP"),
             min.cutoff= "q9",
             label = T)
+dev.off()
 # microglia
 View(retina_markers %>%
        filter(gene == 'HLA-DPA1'|gene == 'HLA-DPB1'|gene == 'HLA-DRA'))
@@ -197,6 +228,13 @@ FeaturePlot(retina_combined,
 # bipolar cells
 View(retina_markers %>%
        filter(gene == 'VSX2'|gene == 'OTX2'))
+pdf(file = "code/msgwas/figures/bipolar_markers.pdf", width = 11, height = 8)
+FeaturePlot(retina_combined,
+            features = c("VSX2", "OTX2"),
+            min.cutoff = "q9",
+            label = T,
+            blend = T)
+dev.off()
 # RGC
 View(retina_markers %>%
        filter(gene == 'NEFL'|gene == 'GAP43'|gene == 'SNCG'))
@@ -206,20 +244,25 @@ View(retina_markers %>%
 # horizontal cells
 View(retina_markers %>%
        filter(gene == 'ONECUT1'|gene == 'ONECUT2'))
+
+# highly expressed genes by cluster
+cluster_genes <- retina_markers %>%
+  filter(cluster == 2)
+View(cluster_genes)
 # assign cluster IDs
 retina_combined <- RenameIdents(retina_combined,
-                                `0` = "Rod PR (RHO, CNGA1, PDE6A)/bipolar cells (OTX2)",
+                                `0` = "Rod PR (RHO, CNGA1, PDE6A)",
                                 `1` = "Rod PR (PDE6A)",
                                 `2` = "Muller glia (RLBP1)",
                                 `3` = "Rod PR (RHO, CNGA1, PDE6A)",
                                 `4` = "Rod PR (RHO, CNGA1)",
                                 `5` = "Rod PR (RHO, CNGA1)",
-                                `6` = "Cone PR (ARR3)/bipolar cells (OTX2)",
+                                `6` = "Cone PR (ARR3)",
                                 `7` = "RGC (SNCG, NEFL)",
                                 `8` = "bipolar cells (VSX2, OTX2)",
                                 `9` = "bipolar cells (VSX2, OTX2)",
                                 `10` = "bipolar cells (VSX1, OTX2)",
-                                `11` = "Muller glia (RLBP1)/Astrocytes (GFAP)/bipolar cells (VSX2)",
+                                `11` = "Muller glia (RLBP1)",
                                 `12` = "RGC (SNCG, NEFL)",
                                 `13` = "Muller glia (RLBP1)/bipolar cells (VSX2)",
                                 `14` = "bipolar cells (VSX2, OTX2)",
@@ -228,7 +271,7 @@ retina_combined <- RenameIdents(retina_combined,
                                 `17` = "Cone PR (ARR3, GUCA1C, GNGT2)/amacrine (CALB1)",
                                 `18` = "bipolar cells (VSX2, OTX2)/amacrine (CALB1)",
                                 `19` = "microglia (HLA-DPA1, HLA-DPB1, HLA-DRA)",
-                                `20` = "RGC (SNCG)/amacrine (CALB1)/horizontal (ONECUT1, ONECUT2)",
-                                `21` = "Astrocytes (GFAP)",
-                                `22` = "bipolar cells (VSX1, VSX2, OTX2)/RGC (SNCG, NEFL)")
+                                `20` = "horizontal (ONECUT1, ONECUT2)",
+                                `21` = "Adipocytes?",
+                                `22` = "bipolar cells (VSX1, VSX2, OTX2)")
 
