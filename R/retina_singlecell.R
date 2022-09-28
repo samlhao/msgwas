@@ -60,12 +60,12 @@ luk_nFeatures <- luk_data$nFeature_RNA
 menon10x_nFeatures <- menon10x_data$nFeature_RNA
 menonSW_nFeatures <- menonSW_data$nFeature_RNA
 
-quantile(luk_nFeatures)
-ecdf(luk_nFeatures)(2500)
-quantile(menon10x_nFeatures)
-ecdf(menon10x_nFeatures)(2500)
-quantile(menonSW_nFeatures)
-ecdf(menonSW_nFeatures)(3500)
+# quantile(luk_nFeatures)
+# ecdf(luk_nFeatures)(2500)
+# quantile(menon10x_nFeatures)
+# ecdf(menon10x_nFeatures)(2500)
+# quantile(menonSW_nFeatures)
+# ecdf(menonSW_nFeatures)(3500)
 
 # no mt data in menon datasets
 # compare gene names
@@ -153,13 +153,13 @@ dev.off()
 # cluster with 20 PCs
 retina_combined <- FindNeighbors(retina_combined, reduction = "pca", dims = 1:20)
 # increase resolution to 0.8
-retina_combined <- FindClusters(retina_combined, resolution = c(0.6, 1.0, 1.2, 0.8))
+retina_combined <- FindClusters(retina_combined, resolution = c(0.8))
 retina_combined <- RunTSNE(retina_combined, dims = 1:20)
 pdf(file = "code/msgwas/figures/tSNE_retina_pc20_res08.pdf", width = 11, height = 8)
 DimPlot(retina_combined)
 dev.off()
 saveRDS(retina_combined, file = "data/processed/retina_combined_pc20_res08.rds")
-retina_combined <- readRDS("data/processed/retina_combined_pc20_res08.rds")
+# retina_combined <- readRDS("data/processed/retina_combined_pc20_res08.rds")
 
 # plot by dataset source
 pdf(file = "code/msgwas/figures/tSNE_retina_datasource_pc20_res08.pdf", width = 11, height = 8)
@@ -182,7 +182,7 @@ DefaultAssay(retina_combined) <- "RNA"
 retina_markers <- FindAllMarkers(retina_combined, only.pos = TRUE,
                                  min.pct = 0.25, logfc.threshold = 0.25)
 saveRDS(retina_markers, file = "data/processed/retina_markers_pc20_res08.rds")
-retina_markers <- readRDS("data/processed/retina_markers_pc20_res08.rds")
+# retina_markers <- readRDS("data/processed/retina_markers_pc20_res08.rds")
 markers_top <- retina_markers %>%
   group_by(cluster) %>%
   slice_max(n = 5, order_by = avg_log2FC)

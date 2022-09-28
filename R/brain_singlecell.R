@@ -12,11 +12,14 @@ setwd("/home/shao11/data_kfitzg13/msgwas_shao11")
 
 # load schirmer dataset
 schirmer_raw <- Read10X(data.dir = "data/sc_data/brain/schirmer/run_cellranger_aggr/schirmer_aggr/outs/count/filtered_feature_bc_matrix/")
+schirmer_data <- CreateSeuratObject(counts = schirmer_raw,
+                                    project = "schirmer",
+                                    min.cells = 3,
+                                    min.features = 200)
 
 # load jakel dataset
-jakel_raw <- data.frame(fread(file = "data/sc_data/brain/jakel/GSE118257_MSCtr_snRNA_ExpressionMatrix_R.txt",
-                              sep = "\t"), row.names = 1)
-jakel_data <- CreateSeuratObject(counts = jakel_raw,
-                               min.cells = 3,
-                               min.features = 200,
-                               project = "jakel")
+jakel_cleaned <- readRDS(file = "data/sc_data/brain/jakel/jakel_clean.rds")
+
+# load absinta dataset
+absinta_cleaned <- readRDS(file = "data/sc_data/brain/absinta/all20_integrated_clean_metadata.rds")
+
