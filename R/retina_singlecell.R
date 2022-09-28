@@ -147,26 +147,22 @@ retina_combined <- ScaleData(retina_combined)
 retina_combined <- RunPCA(retina_combined, npcs = 50)
 
 # determine dimensionality
-retina_combined <- JackStraw(retina_combined, num.replicate = 100)
-retina_combined <- ScoreJackStraw(retina_combined, dims = 1:20)
-pdf(file = "code/msgwas/figures/retina_JackStrawPlot.pdf", width = 11, height = 8)
-JackStrawPlot(retina_combined, dims = 1:20)
-dev.off()
 pdf(file = "code/msgwas/figures/retina_elbowplot.pdf", width = 11, height = 8)
 ElbowPlot(retina_combined, ndims = 50)
 dev.off()
-# cluster with 30 PCs
-retina_combined <- FindNeighbors(retina_combined, reduction = "pca", dims = 1:30)
-# vector of resolutions
-retina_combined <- FindClusters(retina_combined, resolution = c(0.6, 0.8, 1.0, 1.2))
-retina_combined <- RunTSNE(retina_combined, dims = 1:30)
-pdf(file = "code/msgwas/figures/tSNE_retina_pc30.pdf", width = 6, height = 5)
+# cluster with 20 PCs
+retina_combined <- FindNeighbors(retina_combined, reduction = "pca", dims = 1:20)
+# increase resolution to 0.8
+retina_combined <- FindClusters(retina_combined, resolution = c(0.6, 1.0, 1.2, 0.8))
+retina_combined <- RunTSNE(retina_combined, dims = 1:20)
+pdf(file = "code/msgwas/figures/tSNE_retina_pc20_res08.pdf", width = 11, height = 8)
 DimPlot(retina_combined)
 dev.off()
-saveRDS(retina_combined, file = "data/processed/retina_combined_pc30.rds")
+saveRDS(retina_combined, file = "data/processed/retina_combined_pc20_res08.rds")
+retina_combined <- readRDS("data/processed/retina_combined_pc20_res08.rds")
 
 # plot by dataset source
-pdf(file = "code/msgwas/figures/tSNE_retina_datasource_pc30.pdf", width = 6, height = 4)
+pdf(file = "code/msgwas/figures/tSNE_retina_datasource_pc20_res08.pdf", width = 11, height = 8)
 DimPlot(retina_combined, reduction = "tsne", group.by = "orig.ident")
 dev.off()
 
@@ -185,14 +181,15 @@ dev.off()
 DefaultAssay(retina_combined) <- "RNA"
 retina_markers <- FindAllMarkers(retina_combined, only.pos = TRUE,
                                  min.pct = 0.25, logfc.threshold = 0.25)
-saveRDS(retina_markers, file = "data/processed/retina_markers.rds")
+saveRDS(retina_markers, file = "data/processed/retina_markers_pc20_res08.rds")
+retina_markers <- readRDS("data/processed/retina_markers_pc20_res08.rds")
 markers_top <- retina_markers %>%
   group_by(cluster) %>%
   slice_max(n = 5, order_by = avg_log2FC)
 cluster_markers <- retina_markers %>%
   group_by(cluster) %>%
   slice_max(n = 1, order_by = avg_log2FC)
-write.csv(x = markers_top, file = "data/processed/retina_markers.csv")
+write.csv(x = markers_top, file = "data/processed/retina_markers_pc20_res08.csv")
 
 pdf(file = "figures/retina_featureplot.pdf", width = 10, height = 10)
 FeaturePlot(retina_combined,
@@ -251,31 +248,32 @@ View(retina_markers %>%
 
 # highly expressed genes by cluster
 cluster_genes <- retina_markers %>%
-  filter(cluster == 2)
+  filter(cluster == 11)
 View(cluster_genes)
 # assign cluster IDs
-retina_combined <- RenameIdents(retina_combined,
-                                `0` = "Rod PR (RHO, CNGA1, PDE6A)",
-                                `1` = "Rod PR (PDE6A)",
-                                `2` = "Muller glia (RLBP1)",
-                                `3` = "Rod PR (RHO, CNGA1, PDE6A)",
-                                `4` = "Rod PR (RHO, CNGA1)",
-                                `5` = "Rod PR (RHO, CNGA1)",
-                                `6` = "Cone PR (ARR3)",
-                                `7` = "RGC (SNCG, NEFL)",
-                                `8` = "bipolar cells (VSX2, OTX2)",
-                                `9` = "bipolar cells (VSX2, OTX2)",
-                                `10` = "bipolar cells (VSX1, OTX2)",
-                                `11` = "Muller glia (RLBP1)",
-                                `12` = "RGC (SNCG, NEFL)",
-                                `13` = "Muller glia (RLBP1)/bipolar cells (VSX2)",
-                                `14` = "bipolar cells (VSX2, OTX2)",
-                                `15` = "Muller glia (RLBP1)",
-                                `16` = "amacrine (GAD1)",
-                                `17` = "Cone PR (ARR3, GUCA1C, GNGT2)/amacrine (CALB1)",
-                                `18` = "bipolar cells (VSX2, OTX2)/amacrine (CALB1)",
-                                `19` = "microglia (HLA-DPA1, HLA-DPB1, HLA-DRA)",
-                                `20` = "horizontal (ONECUT1, ONECUT2)",
-                                `21` = "Adipocytes?",
-                                `22` = "bipolar cells (VSX1, VSX2, OTX2)")
+# retina_combined <- RenameIdents(retina_combined,
+#                                 `0` = "0 - Rod PR (RHO, CNGA1, PDE6A)",
+#                                 `1` = "1 - Rod PR (PDE6A)",
+#                                 `2` = "2 - Muller glia (RLBP1)",
+#                                 `3` = "3 - Rod PR (RHO, CNGA1, PDE6A)",
+#                                 `4` = "4 - Rod PR (RHO, CNGA1)",
+#                                 `5` = "5 - Rod PR (RHO, CNGA1)",
+#                                 `6` = "6 - Cone PR (ARR3)",
+#                                 `7` = "7 - RGC (SNCG, NEFL)",
+#                                 `8` = "8 - bipolar cells (VSX2, OTX2)",
+#                                 `9` = "9 - bipolar cells (VSX2, OTX2)",
+#                                 `10` = "10 - bipolar cells (VSX1, OTX2)",
+#                                 `11` = "11 - Muller glia (RLBP1)",
+#                                 `12` = "12 - RGC (SNCG, NEFL)",
+#                                 `13` = "13 - bipolar cells (VSX2)",
+#                                 `14` = "14 - Muller glia (RLBP1)/bipolar cells (VSX2, OTX2)",
+#                                 `15` = "15 - Muller glia (RLBP1)",
+#                                 `16` = "16 - amacrine (GAD1)",
+#                                 `17` = "17 - Cone PR (ARR3, GUCA1C, GNGT2)/amacrine (CALB1)",
+#                                 `18` = "18 - bipolar cells (VSX2, OTX2)/amacrine (CALB1)",
+#                                 `19` = "19 - Cone PR (ARR3, GUCA1C, GNGT2)",
+#                                 `20` = "20 - horizontal (ONECUT1, ONECUT2)",
+#                                 `21` = "21 - Adipocytes?",
+#                                 `22` = "22 - bipolar cells (VSX1, VSX2, OTX2)",
+#                                 `23` = "23")
 
