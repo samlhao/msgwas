@@ -9,7 +9,8 @@ library(data.table)
 library(dplyr)
 library(ggplot2)
 
-setwd("/home/shao11/data_kfitzg13/msgwas_shao11")
+# setwd("/home/shao11/data_kfitzg13/msgwas_shao11")
+setwd("~/OneDrive - Johns Hopkins/JHU-MBP/research/msgwas")
 
 # Load lukowski dataset
 luk_raw <- data.frame(fread(file = "data/sc_data/retina/lukowski/E-MTAB-7316.processed.4/ae_exp_raw_all.tsv",
@@ -157,6 +158,9 @@ menon10x_markers <-FindAllMarkers(menon10x_data, only.pos = TRUE,
                              min.pct = 0.25, logfc.threshold = 0.25)
 saveRDS(menon10x_data, file = "data/processed/menon10x.rds")
 saveRDS(menon10x_markers, file = "data/processed/menon10x_markers.rds")
+# load RDS for working on local MBP
+menon10x_data <- readRDS(file = "data/processed/menon10x.rds")
+menon10x_markers <- readRDS(file = "data/processed/menon10x_markers.rds")
 
 markers_top <- menon10x_markers %>%
   group_by(cluster) %>%
@@ -166,14 +170,14 @@ write.csv(markers_top, file = "data/processed/menon10x_markers.csv")
 pdf(file = "code/msgwas/figures/menon10x_dotplot.pdf", width = 11, height = 8)
 DotPlot(menon10x_data,
         features = c("PDE6A", "CNGA1", "RHO", "PPEF2", "NR2E3", # rod PR
-                     "ARR3", "GNGT2", "GUCA1C", # cone PR
+                     "ARR3", "GNGT2", "GUCA1C", "GNAT2", "OPN1SW", "OPN1MW", "OPN1LW", # cone PR
                      "RLBP1", "CRABP1", # Muller glia
                      "GFAP", # astrocytes
                      "HLA-DPA1", "HLA-DPB1", "HLA-DRA", # microglia
-                     "VSX2", "OTX2", # bipolar cells
+                     "VSX2", "OTX2", "SLC38A1", # bipolar cells
                      "NEFL", "GAP43", "SNCG", "SLC17A6", "NEFM", # RGC
                      "GAD1", "CALB1", "CHAT", "C1QL2", # amacrine cells
-                     "ONECUT1", "ONECUT2", "PVALB", "LHX1", # horizontal cells
+                     "ONECUT1", "ONECUT2", "PVALB", "LHX1", "JPH4", # horizontal cells
                      "ADAMTS9", "CD34", "CDH5", "RGS5", # vascular cells
                      "GRIK1"), # OPCs
         cluster.idents = T) +
@@ -201,11 +205,33 @@ menonSW_markers <-FindAllMarkers(menonSW_data, only.pos = TRUE,
                                   min.pct = 0.25, logfc.threshold = 0.25)
 saveRDS(menonSW_data, file = "data/processed/menonSW.rds")
 saveRDS(menonSW_markers, file = "data/processed/menonSW_markers.rds")
+# load RDS for work on local MBP
+menonSW_data <- readRDS(file = "data/processed/menonSW.rds")
 markers_top <- menonSW_markers %>%
   group_by(cluster) %>%
   slice_max(n = 5, order_by = avg_log2FC)
 write.csv(markers_top, file = "data/processed/menonSW_markers.csv")
 
+pdf(file = "code/msgwas/figures/menonSW_dotplot.pdf", width = 11, height = 8)
+DotPlot(menonSW_data,
+        features = c("PDE6A", "CNGA1", "RHO", "PPEF2", "NR2E3", # rod PR
+                     "ARR3", "GNGT2", "GUCA1C", "GNAT2", "OPN1SW", "OPN1MW", "OPN1LW", # cone PR
+                     "RLBP1", "CRABP1", # Muller glia
+                     "GFAP", # astrocytes
+                     "HLA-DPA1", "HLA-DPB1", "HLA-DRA", # microglia
+                     "VSX2", "OTX2", # bipolar cells
+                     "NEFL", "GAP43", "SNCG", "SLC17A6", "NEFM", # RGC
+                     "GAD1", "CALB1", "CHAT", "C1QL2", # amacrine cells
+                     "ONECUT1", "ONECUT2", "PVALB", "LHX1", "JPH4", # horizontal cells
+                     "ADAMTS9", "CD34", "CDH5", "RGS5", # vascular cells
+                     "GRIK1"), # OPCs
+        cluster.idents = T) +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+dev.off()
+
+clus <- menonSW_markers %>%
+  filter(cluster == 4)
+View(clus)
 #--------------------------------------
 
 # # Integration with Seurat
