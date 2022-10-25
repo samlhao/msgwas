@@ -99,7 +99,7 @@ menonSW_data <- subset(menonSW_data, subset = nFeature_RNA > 200 & nFeature_RNA 
 # lukowski data alone
 luk_data <- NormalizeData(luk_data)
 luk_data <- FindVariableFeatures(luk_data, selection.method = "vst", nfeatures = 2000)
-all.genes <- rownames(luk_data)
+luk_all.genes <- rownames(luk_data)
 luk_data <- ScaleData(luk_data, features = all.genes)
 luk_data <- RunPCA(luk_data, features = VariableFeatures(object = luk_data))
 luk_data <- FindNeighbors(luk_data, reduction = "pca", dims = 1:20)
@@ -140,12 +140,121 @@ DotPlot(luk_data,
         cluster.idents = T) +
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
 dev.off()
+
+# Find subclusters in 6 rod PR/Muller glia
+luk_cluster6 <- subset(luk_data, subset = (seurat_clusters=="6"))
+luk_cluster6 <- NormalizeData(luk_cluster6)
+luk_cluster6 <- FindVariableFeatures(luk_cluster6, selection.method = "vst", nfeatures = 2000)
+luk_cluster6.genes <- rownames(luk_cluster6)
+luk_cluster6 <- ScaleData(luk_cluster6, features = luk_cluster6.genes)
+luk_cluster6 <- RunPCA(luk_cluster6, features = VariableFeatures(object = luk_cluster6))
+luk_cluster6 <- FindNeighbors(luk_cluster6, reduction = "pca", dims = 1:20)
+luk_cluster6 <- FindClusters(luk_cluster6, resolution = 0.6)
+luk_cluster6 <- RunTSNE(luk_cluster6, dims = 1:20)
+pdf(file = "code/msgwas/figures/tSNE_lukowski_cluster6.pdf", width = 11, height = 8)
+DimPlot(luk_cluster6, label = T)
+dev.off()
+pdf(file = "code/msgwas/figures/lukowski_cluster6_dotplot.pdf", width = 11, height = 8)
+DotPlot(luk_cluster6,
+        features = c("PDE6A", "CNGA1", "RHO", "PPEF2", "NR2E3", # rod PR
+                     "ARR3", "GNGT2", "GUCA1C", # cone PR
+                     "RLBP1", "CRABP1", # Muller glia
+                     "GFAP", # astrocytes
+                     "HLA-DPA1", "HLA-DPB1", "HLA-DRA", # microglia
+                     "VSX2", "OTX2", # bipolar cells
+                     "NEFL", "GAP43", "SNCG", "SLC17A6", "NEFM", # RGC
+                     "GAD1", "CALB1", "CHAT", "C1QL2", # amacrine cells
+                     "ONECUT1", "ONECUT2", "PVALB", "LHX1", # horizontal cells
+                     "ADAMTS9", "CD34", "CDH5", "RGS5"), # vascular cells
+        cluster.idents = T) +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+dev.off()
+# Assign cell type to subclusters
+luk_cluster6 <- RenameIdents(luk_cluster6,
+                             `0` = "rod PR",
+                             `1` = "rod PR",
+                             `2` = "Muller glia",
+                             `3` = "cone PR",
+                             `4` = "Muller glia")
+
+# Find subclusters in 11
+luk_cluster11 <- subset(luk_data, subset = (seurat_clusters=="11"))
+luk_cluster11 <- NormalizeData(luk_cluster11)
+luk_cluster11 <- FindVariableFeatures(luk_cluster11, selection.method = "vst", nfeatures = 2000)
+luk_cluster11.genes <- rownames(luk_cluster11)
+luk_cluster11 <- ScaleData(luk_cluster11, features = luk_cluster11.genes)
+luk_cluster11 <- RunPCA(luk_cluster11, features = VariableFeatures(object = luk_cluster11))
+luk_cluster11 <- FindNeighbors(luk_cluster11, reduction = "pca", dims = 1:20)
+luk_cluster11 <- FindClusters(luk_cluster11, resolution = 0.6)
+luk_cluster11 <- RunTSNE(luk_cluster11, dims = 1:20)
+pdf(file = "code/msgwas/figures/tSNE_lukowski_cluster11.pdf", width = 11, height = 8)
+DimPlot(luk_cluster11, label = T)
+dev.off()
+pdf(file = "code/msgwas/figures/lukowski_cluster11_dotplot.pdf", width = 11, height = 8)
+DotPlot(luk_cluster11,
+        features = c("PDE6A", "CNGA1", "RHO", "PPEF2", "NR2E3", # rod PR
+                     "ARR3", "GNGT2", "GUCA1C", # cone PR
+                     "RLBP1", "CRABP1", # Muller glia
+                     "GFAP", # astrocytes
+                     "HLA-DPA1", "HLA-DPB1", "HLA-DRA", # microglia
+                     "VSX2", "OTX2", # bipolar cells
+                     "NEFL", "GAP43", "SNCG", "SLC17A6", "NEFM", # RGC
+                     "GAD1", "CALB1", "CHAT", "C1QL2", # amacrine cells
+                     "ONECUT1", "ONECUT2", "PVALB", "LHX1", # horizontal cells
+                     "ADAMTS9", "CD34", "CDH5", "RGS5"), # vascular cells
+        cluster.idents = T) +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+dev.off()
+luk_cluster11_markers <-FindAllMarkers(luk_cluster11, only.pos = TRUE,
+                             min.pct = 0.25, logfc.threshold = 0.25)
+View(luk_cluster11_markers %>%
+       filter(cluster == 3))
+
+# Assign cell type to subclusters
+luk_cluster11 <- RenameIdents(luk_cluster11,
+                             `0` = "Muller glia",
+                             `1` = "amacrine cells",
+                             `2` = "RGC",
+                             `3` = "rod PR",
+                             `4` = "horizontal cells",
+                             `5` = "amacrine cells")
+
+# Assign cell type to clusters
+# Assign cluster 6, 11 based on subclustering
+Idents(luk_data, cells = WhichCells(luk_cluster6, idents = "rod PR")) <- "rod PR" 
+Idents(luk_data, cells = WhichCells(luk_cluster6, idents = "Muller glia")) <- "Muller glia"
+Idents(luk_data, cells = WhichCells(luk_cluster6, idents = "cone PR")) <- "cone PR"
+Idents(luk_data, cells = WhichCells(luk_cluster11, idents = "Muller glia")) <- "Muller glia"
+Idents(luk_data, cells = WhichCells(luk_cluster11, idents = "amacrine cells")) <- "amacrine cells"
+Idents(luk_data, cells = WhichCells(luk_cluster11, idents = "RGC")) <- "RGC"
+Idents(luk_data, cells = WhichCells(luk_cluster11, idents = "horizontal cells")) <- "horizontal cells"
+Idents(luk_data, cells = WhichCells(luk_cluster11, idents = "rod PR")) <- "rod PR"
+luk_data <- RenameIdents(luk_data,
+                         `0` = "rod PR",
+                         `1` = "rod PR",
+                         `2` = "rod PR",
+                         `3` = "rod PR",
+                         `4` = "rod PR",
+                         `5` = "rod PR",
+                         `7` = "Muller glia",
+                         `8` = "bipolar cells",
+                         `9` = "bipolar cells",
+                         `10` = "bipolar cells",
+                         `12` = "cone PR",
+                         `13` = "microglia",
+                         `14` = "bipolar cells",
+                         `15` = "bipolar cells",
+                         `16` = "bipolar cells",
+                         `17` = "astrocytes")
+luk_data <- StashIdent(luk_data, save.name = "cell.type")
+
+saveRDS(luk_data, file = "data/processed/luk.rds")
 #--------------------------------------
 #--------------------------------------
 # menon10x data 
 menon10x_data <- NormalizeData(menon10x_data)
 menon10x_data <- FindVariableFeatures(menon10x_data, selection.method = "vst", nfeatures = 2000)
-all.genes <- rownames(menon10x_data)
+menon10x_all.genes <- rownames(menon10x_data)
 menon10x_data <- ScaleData(menon10x_data, features = all.genes)
 menon10x_data <- RunPCA(menon10x_data, features = VariableFeatures(object = menon10x_data))
 menon10x_data <- FindNeighbors(menon10x_data, reduction = "pca", dims = 1:20)
@@ -184,9 +293,99 @@ DotPlot(menon10x_data,
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
 dev.off()
 
-clus <- menon10x_markers %>%
-  filter(cluster == 4)
-View(clus)
+# cluster 4 subclustering
+menon10x4 <- subset(menon10x_data, subset = (seurat_clusters == "4"))
+menon10x4 <- NormalizeData(menon10x4)
+menon10x4 <- FindVariableFeatures(menon10x4, selection.method = "vst", nfeatures = 2000)
+menon10x_all.genes <- rownames(menon10x4)
+menon10x4 <- ScaleData(menon10x4, features = menon10x4_all.genes)
+menon10x4 <- RunPCA(menon10x4, features = VariableFeatures(object = menon10x4))
+menon10x4 <- FindNeighbors(menon10x4, reduction = "pca", dims = 1:20)
+menon10x4 <- FindClusters(menon10x4, resolution = 0.6)
+menon10x4 <- RunTSNE(menon10x4, dims = 1:20)
+DotPlot(menon10x4,
+        features = c("PDE6A", "CNGA1", "RHO", "PPEF2", "NR2E3", # rod PR
+                     "ARR3", "GNGT2", "GUCA1C", "GNAT2", "OPN1SW", "OPN1MW", "OPN1LW", # cone PR
+                     "RLBP1", "CRABP1", # Muller glia
+                     "GFAP", # astrocytes
+                     "HLA-DPA1", "HLA-DPB1", "HLA-DRA", # microglia
+                     "VSX2", "OTX2", "SLC38A1", # bipolar cells
+                     "NEFL", "GAP43", "SNCG", "SLC17A6", "NEFM", # RGC
+                     "GAD1", "CALB1", "CHAT", "C1QL2", # amacrine cells
+                     "ONECUT1", "ONECUT2", "PVALB", "LHX1", "JPH4", # horizontal cells
+                     "ADAMTS9", "CD34", "CDH5", "RGS5", # vascular cells
+                     "GRIK1"), # OPCs
+        cluster.idents = T) +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+# assign cluster 4 cell identities based on subclusters
+menon10x4 <- RenameIdents(menon10x4,
+                          `0` = "rod PR",
+                          `1` = "bipolar cells",
+                          `2` = "bipolar cells",
+                          `3` = "amacrine cells")
+# cluster 11 subclustering
+menon10x11 <- subset(menon10x_data, subset = (seurat_clusters == "11"))
+menon10x11 <- NormalizeData(menon10x11)
+menon10x11 <- FindVariableFeatures(menon10x11, selection.method = "vst", nfeatures = 2000)
+menon10x_all.genes <- rownames(menon10x11)
+menon10x11 <- ScaleData(menon10x11, features = menon10x11_all.genes)
+menon10x11 <- RunPCA(menon10x11, features = VariableFeatures(object = menon10x11))
+menon10x11 <- FindNeighbors(menon10x11, reduction = "pca", dims = 1:20)
+menon10x11 <- FindClusters(menon10x11, resolution = 0.6)
+menon10x11 <- RunTSNE(menon10x11, dims = 1:20)
+DotPlot(menon10x11,
+        features = c("PDE6A", "CNGA1", "RHO", "PPEF2", "NR2E3", # rod PR
+                     "ARR3", "GNGT2", "GUCA1C", "GNAT2", "OPN1SW", "OPN1MW", "OPN1LW", # cone PR
+                     "RLBP1", "CRABP1", # Muller glia
+                     "GFAP", # astrocytes
+                     "HLA-DPA1", "HLA-DPB1", "HLA-DRA", # microglia
+                     "VSX2", "OTX2", "SLC38A1", # bipolar cells
+                     "NEFL", "GAP43", "SNCG", "SLC17A6", "NEFM", # RGC
+                     "GAD1", "CALB1", "CHAT", "C1QL2", # amacrine cells
+                     "ONECUT1", "ONECUT2", "PVALB", "LHX1", "JPH4", # horizontal cells
+                     "ADAMTS9", "CD34", "CDH5", "RGS5", # vascular cells
+                     "GRIK1"), # OPCs
+        cluster.idents = T) +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+# assign cluster 11 cell identities based on subclustering
+menon10x11 <- RenameIdents(menon10x11,
+                           `0` = "amacrine cells",
+                           `1` = "rod PR",
+                           `2` = "rod PR",
+                           `3` = "amacrine cells",
+                           `4` = "amacrine cells",
+                           `5` = "RGC")
+# assign cell identites to all menon10x data
+Idents(menon10x_data, cells = WhichCells(menon10x4, idents = "bipolar cells")) <- "bipolar cells"
+Idents(menon10x_data, cells = WhichCells(menon10x4, idents = "rod PR")) <- "rod PR"
+Idents(menon10x_data, cells = WhichCells(menon10x4, idents = "amacrine cells")) <- "amacrine cells"
+Idents(menon10x_data, cells = WhichCells(menon10x11, idents = "rod PR")) <- "rod PR"
+Idents(menon10x_data, cells = WhichCells(menon10x11, idents = "amacrine cells")) <- "amacrine cells"
+Idents(menon10x_data, cells = WhichCells(menon10x11, idents = "RGC")) <- "RGC"
+menon10x_data <- RenameIdents(menon10x_data,
+                              `0` = "rod PR",
+                              `1` = "Muller glia",
+                              `2` = "RGC",
+                              `3` = "rod PR",
+                              `5` = "rod PR",
+                              `6` = "bipolar cells",
+                              `7` = "Muller glia",
+                              `8` = "Muller glia",
+                              `9` = "bipolar cells",
+                              `10` = "Muller glia",
+                              `12` = "Muller glia",
+                              `13` = "bipolar cells",
+                              `14` = "Muller glia",
+                              `15` = "bipolar cells",
+                              `16` = "cone PR",
+                              `17` = "horizontal cells",
+                              `18` = "bipolar cells",
+                              `19` = "microglia",
+                              `20` = "RGC",
+                              `21` = "vascular cells") 
+menon10x_data <- StashIdent(menon10x_data, save.name = "cell.type")
+
+saveRDS(menon10x_data, file = "data/processed/menon10x.rds")
 #--------------------------------------
 #--------------------------------------
 # menonSW data
@@ -229,61 +428,79 @@ DotPlot(menonSW_data,
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
 dev.off()
 
-clus <- menonSW_markers %>%
-  filter(cluster == 4)
-View(clus)
+menonSW_data <- RenameIdents(menonSW_data,
+                             `0` = "RGC",
+                             `1` = "rod PR",
+                             `2` = "rod PR",
+                             `3` = "Muller glia",
+                             `4` = "microglia",
+                             `5` = "Muller glia",
+                             `6` = "bipolar cells",
+                             `7` = "vascular cells",
+                             `8` = "RGC",
+                             `9` = "bipolar cells",
+                             `10` = "bipolar cells",
+                             `11` = "bipolar cells",
+                             `12` = "horizontal cells",
+                             `13` = "cone PR")
+menonSW_data <- StashIdent(menonSW_data, save.name = "cell.type")
+
+saveRDS(menonSW_data, file = "data/processed/menonSW.rds")
 #--------------------------------------
 
-# # Integration with Seurat
-# 
-# # make list
-# retina_list <- list()
-# retina_list[["lukowski"]] <- luk_data
-# retina_list[["menon10x"]] <- menon10x_data
-# retina_list[["menonSW"]] <- menonSW_data
-# 
-# # normalize and identify variable features for each dataset independently
-# retina_list <- lapply(X = retina_list,
-#                       FUN = function(x) {
-#                         x <- NormalizeData(x)
-#                         x <- FindVariableFeatures(x, selection.method = "vst", nfeatures = 2000)
-#                       })
-# # select features that are repeatedly variable across datasets for integration
-# features <- SelectIntegrationFeatures(object.list = retina_list)
-# 
-# # identify anchors
-# retina_anchors <- FindIntegrationAnchors(object.list = retina_list, anchor.features = features)
-# # create integrated data assay
-# retina_combined <- IntegrateData(anchorset = retina_anchors)
-# 
-# # Integrated Analysis
-# DefaultAssay(retina_combined) <- "integrated"
-# 
-# # standard workflow for visualization and clustering
-# retina_combined <- ScaleData(retina_combined)
-# retina_combined <- RunPCA(retina_combined, npcs = 50)
-# 
-# # determine dimensionality
+# Integration with Seurat
+
+# load datasets
+luk_data <- readRDS("data/processed/luk.rds")
+menon10x_data <- readRDS("data/processed/menon10x.rds")
+menonSW_data <- readRDS("data/processed/menonSW.rds")
+# make list
+retina_list <- list()
+retina_list[["lukowski"]] <- luk_data
+retina_list[["menon10x"]] <- menon10x_data
+retina_list[["menonSW"]] <- menonSW_data
+
+# normalize and identify variable features for each dataset independently
+retina_list <- lapply(X = retina_list,
+                      FUN = function(x) {
+                        x <- NormalizeData(x)
+                        x <- FindVariableFeatures(x, selection.method = "vst", nfeatures = 2000)
+                      })
+# select features that are repeatedly variable across datasets for integration
+features <- SelectIntegrationFeatures(object.list = retina_list)
+
+# identify anchors
+retina_anchors <- FindIntegrationAnchors(object.list = retina_list, anchor.features = features)
+# create integrated data assay
+retina_combined <- IntegrateData(anchorset = retina_anchors)
+
+# Integrated Analysis
+DefaultAssay(retina_combined) <- "integrated"
+
+# standard workflow for visualization and clustering
+retina_combined <- ScaleData(retina_combined)
+retina_combined <- RunPCA(retina_combined, npcs = 50)
+
+# determine dimensionality
 # pdf(file = "code/msgwas/figures/retina_elbowplot.pdf", width = 11, height = 8)
 # ElbowPlot(retina_combined, ndims = 50)
 # dev.off()
-# # cluster with 20 PCs
-# retina_combined <- FindNeighbors(retina_combined, reduction = "pca", dims = 1:20)
-# # increase resolution to 0.8
-# retina_combined <- FindClusters(retina_combined, resolution = c(0.6))
-# retina_combined <- RunTSNE(retina_combined, dims = 1:20)
-# pdf(file = "code/msgwas/figures/tSNE_retina_pc20_res06.pdf", width = 11, height = 8)
-# DimPlot(retina_combined)
-# dev.off()
-# saveRDS(retina_combined, file = "data/processed/retina_combined_pc20_res06.rds")
-# # retina_combined <- readRDS("data/processed/retina_combined_pc20_res06.rds")
-# 
-# # plot by dataset source
-# pdf(file = "code/msgwas/figures/tSNE_retina_datasource_pc20_res06.pdf", width = 11, height = 8)
-# DimPlot(retina_combined, reduction = "tsne", group.by = "orig.ident")
-# dev.off()
-# 
-# #---------------------------
+# cluster with 20 PCs
+retina_combined <- FindNeighbors(retina_combined, reduction = "pca", dims = 1:20)
+retina_combined <- FindClusters(retina_combined, resolution = c(0.6))
+retina_combined <- RunTSNE(retina_combined, dims = 1:20)
+pdf(file = "code/msgwas/figures/tSNE_retina_pc20_res06.pdf", width = 11, height = 8)
+DimPlot(retina_combined)
+dev.off()
+saveRDS(retina_combined, file = "data/processed/retina_combined_pc20_res06.rds")
+# retina_combined <- readRDS("data/processed/retina_combined_pc20_res06.rds")
+
+# plot by dataset source
+pdf(file = "code/msgwas/figures/tSNE_retina_datasource_pc20_res06.pdf", width = 11, height = 8)
+DimPlot(retina_combined, reduction = "tsne", group.by = "orig.ident")
+dev.off()
+
+#---------------------------
 # # default assay RNA
 # # DefaultAssay(retina_combined) <- "RNA"
 # # retina_combined <- NormalizeData(retina_combined, verbose = F)

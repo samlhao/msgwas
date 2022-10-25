@@ -36,7 +36,7 @@ labeled_schirmer_data <- schirmer_data[,colnames(schirmer_data) %in% schirmer_ce
 View(schirmer_cell_types[!(schirmer_cell_types$cell %in% colnames(schirmer_data)),])
 
 schirmer_data <- AddMetaData(object = labeled_schirmer_data, metadata = schirmer_cell_types)
-saveRDS(schirmer_data, file = "data/processed/schirmer.rds")
+saveRDS(schirmer_data, file = "data/processed/schirmer_labeled.rds")
 # ----------------------------
 # ANALYSIS
 # schirmer_raw <- Read10X(data.dir = "data/sc_data/brain/schirmer/run_cellranger_aggr/schirmer_aggr/outs/count/filtered_feature_bc_matrix/")
@@ -70,7 +70,7 @@ schirmer_data <- ScaleData(schirmer_data, features = all.genes)
 schirmer_data <- RunPCA(schirmer_data, features = VariableFeatures(object = schirmer_data))
 ElbowPlot(schirmer_data)
 schirmer_data <- FindNeighbors(schirmer_data, reduction = "pca", dims = 1:11)
-# resolution gives 22 clusters
+# resolution 0.5 gives 22 clusters
 schirmer_data <- FindClusters(schirmer_data, resolution = c(0.5))
 #-------------------------------
 # clustree analysis to check appropriate resolution
@@ -80,13 +80,14 @@ schirmer_data <- FindClusters(schirmer_data, resolution = c(0.5))
 # schirmer_data$seurat_clusters <- schirmer_data$RNA_snn_res.0.6
 #--------------------------------
 schirmer_data <- RunTSNE(schirmer_data, dims = 1:11)
-pdf(file = "code/msgwas/figures/tSNE_schirmer.pdf", width = 11, height = 8)
-DimPlot(schirmer_data, label = T)
-dev.off()
 
+schirmer_data <- readRDS("data/processed/schirmer.rds")
+pdf(file = "code/msgwas/figures/tSNE_sample_schirmer.pdf", width = 11, height = 8)
+DimPlot(schirmer_data, group.by = "sample")
+dev.off()
+saveRDS(schirmer_data, file = "data/processed/schirmer.rds")
 schirmer_markers <-FindAllMarkers(schirmer_data, only.pos = TRUE,
                              min.pct = 0.25, logfc.threshold = 0.25)
-saveRDS(schirmer_data, file = "data/processed/schirmer.rds")
 saveRDS(schirmer_markers, file = "data/processed/schirmer_markers.rds")
 
 markers_top <- schirmer_markers %>%
@@ -101,3 +102,5 @@ jakel_cleaned <- readRDS(file = "data/sc_data/brain/jakel/jakel_clean.rds")
 # load absinta dataset
 absinta_cleaned <- readRDS(file = "data/sc_data/brain/absinta/all20_integrated_clean_metadata.rds")
 
+# load schirmer dataset
+schirmer_cleaned <- readRDS(file = "data/processed/schirmer.rds")
