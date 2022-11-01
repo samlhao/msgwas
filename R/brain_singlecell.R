@@ -23,6 +23,7 @@ sra_runtable <- read.csv(file = "data/sc_data/brain/schirmer/schirmer_SRARunTabl
 sra_runtable <- left_join(sra_runtable, cellranger_files, by = "Run")
 raw_files <- sapply(sra_runtable$datadir, Read10X)
 data_files <- sapply(raw_files, CreateSeuratObject)
+# Merge datasets only to get cell IDs associated with sample
 schirmer_data <- merge(data_files[[1]], y = data_files[2:21], add.cell.ids = sra_runtable$Isolate)
 
 # load cell assignments
@@ -33,10 +34,21 @@ schirmer_cell_types <- schirmer_cell_types %>%
 rownames(schirmer_cell_types) <- schirmer_cell_types$sampleUMI
 
 labeled_schirmer_data <- schirmer_data[,colnames(schirmer_data) %in% schirmer_cell_types$sampleUMI]
-View(schirmer_cell_types[!(schirmer_cell_types$cell %in% colnames(schirmer_data)),])
 
 schirmer_data <- AddMetaData(object = labeled_schirmer_data, metadata = schirmer_cell_types)
 saveRDS(schirmer_data, file = "data/processed/schirmer_labeled.rds")
+#-----------------------------
+# INTEGRATE SAMPLES
+# Dataset needs to be split by sample and integrated for further analysis rather than merged
+schirmer_list <- SplitObject(schirmer_data, split.by = "sample")
+schirmer_list <- lapply(X = schirmer_list, FUN = function(x) {
+  x <- NormalizeData(x)
+  x <- FindVariableFeatures(x, selection.method = "vst", nfeatures = 2000)
+})
+schirmer_features <- SelectIntegrationFeatures(object.list = schirmer_list)
+schirmer_anchors <- FindIntegrationAnchors(object.list = schirmer_list, anchor.features = schirmer_features)
+schirmer_data <- IntegrateData(anchorset = schirmer_anchors)
+DefaultAssay(schirmer_data) <- "integrated"
 # ----------------------------
 # ANALYSIS
 # schirmer_raw <- Read10X(data.dir = "data/sc_data/brain/schirmer/run_cellranger_aggr/schirmer_aggr/outs/count/filtered_feature_bc_matrix/")
@@ -63,11 +75,8 @@ schirmer_data <- schirmer_data[!grepl("^MT-", rownames(schirmer_data)),]
 # 
 # 
 # # normalize, find features, cluster
-schirmer_data <- NormalizeData(schirmer_data)
-schirmer_data <- FindVariableFeatures(schirmer_data, selection.method = "vst", nfeatures = 2000)
-all.genes <- rownames(schirmer_data)
-schirmer_data <- ScaleData(schirmer_data, features = all.genes)
-schirmer_data <- RunPCA(schirmer_data, features = VariableFeatures(object = schirmer_data))
+schirmer_data <- ScaleData(schirmer_data)
+schirmer_data <- RunPCA(schirmer_data)
 ElbowPlot(schirmer_data)
 schirmer_data <- FindNeighbors(schirmer_data, reduction = "pca", dims = 1:11)
 # resolution 0.5 gives 22 clusters
@@ -80,10 +89,8 @@ schirmer_data <- FindClusters(schirmer_data, resolution = c(0.5))
 # schirmer_data$seurat_clusters <- schirmer_data$RNA_snn_res.0.6
 #--------------------------------
 schirmer_data <- RunTSNE(schirmer_data, dims = 1:11)
-
-schirmer_data <- readRDS("data/processed/schirmer.rds")
-pdf(file = "code/msgwas/figures/tSNE_sample_schirmer.pdf", width = 11, height = 8)
-DimPlot(schirmer_data, group.by = "sample")
+pdf(file = "code/msgwas/figures/tSNE_schirmer.pdf", width = 11, height = 8)
+DimPlot(schirmer_data)
 dev.off()
 saveRDS(schirmer_data, file = "data/processed/schirmer.rds")
 schirmer_markers <-FindAllMarkers(schirmer_data, only.pos = TRUE,
@@ -104,3 +111,10 @@ absinta_cleaned <- readRDS(file = "data/sc_data/brain/absinta/all20_integrated_c
 
 # load schirmer dataset
 schirmer_cleaned <- readRDS(file = "data/processed/schirmer.rds")
+
+#-------------------------------
+# INTEGRATE DATASETS
+brain_list <- list()
+brain_list[["jakel"]] <- jakel_cleaned
+brain_list[["absinta"]] <- absinta_cleaned
+brain_list[["schirmer"]] <- schirmer_cleaned
