@@ -4,6 +4,7 @@ library(dplyr)
 library(parallel)
 library(stringr)
 library(tidyverse)
+library(stringr)
 
 setwd("~/data_kfitzg13/msgwas_shao11/")
 # run this analysis for each of the SNPs in the 
@@ -25,7 +26,7 @@ names(query_snp_list) <- query_snp_list
 # DiscoverySNPs[DiscoverySNPs$SNP.1=='rs10000196']
 
 # assign test SNP from query SNPs
-test_snp <- query_snps[1]
+# test_snp <- query_snps[1]
 
 # define region around each risk SNP (query_snp column)
 make_d1 <- function(s) {
@@ -50,24 +51,20 @@ make_d1 <- function(s) {
 }
 
 # test d1
-test_d1 <- make_d1(test_snp)
+# test_d1 <- make_d1(test_snp)
 
 # apply to query snps list
 d1_list <- mclapply(query_snp_list, make_d1, mc.cores = 30)
-
+#----------------------------------
 # retina
-
-# Currant data
+#----------------------------------
+# CURRANT
 currant <- fread("data/summary_stats/retina/currant/GCIPL.tsv",
                  sep = "\t",
                  header = T)
 currant <- currant %>%
   mutate(varbeta = standard_error^2)
 # d2 for currant
-
-currant_snps <- currant %>%
-  filter(variant_id %in% test_d1$snp)
-
 make_currant_d2 <- function(s) {
   d1 <- d1_list[[s]]
   currant_snps <- currant %>%
@@ -103,12 +100,68 @@ run_coloc_currant <- function(s) {
   }
 }
 # test function
-test_currant <- run_coloc_currant(test_snp)
-
+# test_currant <- run_coloc_currant(test_snp)
 # run for all SNPs
 currant_res <- mclapply(query_snp_list, run_coloc_currant, mc.cores = 30)
 currant_res_sig <- compact(currant_res)
-currant_res_sig[[4]]$summary
+names(currant_res_sig)
+#------------------------
+# RATNAPRIYA
+ratnapriya_files <- Sys.glob("data/summary_stats/retina/ratnapriya/new_nominal*.txt.gz")
+ratnapriya_list <- lapply(X = ratnapriya_files, FUN = fread)
+# helper function to prefilter so less memory
+filter_ratnapriya <- function(dt) {
+  dt <- dt %>%
+    mutate(BP_hg38 = paste(V9, ":", V10, sep=""))
+  msrisk <- RiskSNPs %>%
+    select(BP_hg38, RS_Number, MAF_ms)
+  filt_dt <- msrisk[dt, on=.(BP_hg38), nomatch=NULL]
+  filt_dt
+}
+ratnapriya_filt_list <- mclapply(ratnapriya_list, filter_ratnapriya, mc.cores=30)
+ratnapriya_filt <- rbindlist(ratnapriya_filt_list)
+View(ratnapriya_filt[duplicated(ratnapriya_filt, by="BP_hg38")])
+ratnapriya_filt_list <- mclapply(X = ratnapriya_list, FUN = rename,
+                                 "ENSEMBL" = "V1",
+                                 "gene_chr" = "V2",
+                                 "gene_start" = "V3",
+                                 "gene_end"= "V4",
+                                 "strand" = "V5",
+                                 "n_variants" = "V6",
+                                 "distance" = "V7",
+                                 "rsIDchrpos" = "V8",
+                                 "var_chr" = "V9",
+                                 "var_start" = "V10",
+                                 "var_end" = "V11",
+                                 "P" = "V12",
+                                 "slope" = "V13",
+                                 "flag_most_sig" = "V14")
+ratnapriya <- ratnapriya %>%
+  mutate(BP_hg38 = paste(var_chr, ":", var_start, sep=""))
+# select SNPs that are also MS risk snps
+ratnapriya_msrisk <- ratnapriya[RiskSNPs[,c("RS_Number", "BP_hg38", "MAF_ms")], on = .(BP_hg38)]
+#---------------files for finding rsIDs-----------------------
+# bedops <- ratnapriya %>%
+#   filter(is.na(rsID)) %>%
+#   select(var_chr, var_start, var_end) %>%
+#   rename("chrom" = "var_chr",
+#          "from" = "var_start",
+#          "to" = "var_end")
+# fwrite(bedops, file = "data/processed/ratnapriya_missing_rs.bedtools.txt", sep = "\t", col.names = T)
+#------------------------------------------------------------------
+# add MAF_ms from ms_risk_snps
+mafs <- RiskSNPs[,c("RS_Number", "MAF_ms")] %>%
+  rename("rsID" = "RS_Number")
+setkey(mafs, rsID)
+setkey(ratnapriya, rsID)
+# filters to only the SNPs that have MAF_ms
+ratnapriya <- mafs[ratnapriya, on = .(rsID)]
+
+# remove mafs data.table to save memory
+remove(mafs)
+# write combined file to CSV
+fwrite(ratnapriya, "data/processed/ratnapriya_eQTL.csv")
+
 
 # microglia 
 
