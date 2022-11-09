@@ -1,3 +1,4 @@
+# LOAD LIBRARIES -------
 library(coloc)
 library(data.table)
 library(dplyr)
@@ -5,7 +6,7 @@ library(parallel)
 library(stringr)
 library(tidyverse)
 library(stringr)
-
+# SETUP RISK SNPS------
 setwd("~/data_kfitzg13/msgwas_shao11/")
 # run this analysis for each of the SNPs in the 
 # ms_risk_snps_imsgc_in_ld.csv file (these are all possible SNPs that 
@@ -22,11 +23,8 @@ DiscoverySNPs <- fread("data/discovery_metav3.0.meta.maf.csv",
 query_snp_list <- unique(RiskSNPs$query_snp)
 names(query_snp_list) <- query_snp_list
 
-# checking that info from two files match
-# DiscoverySNPs[DiscoverySNPs$SNP.1=='rs10000196']
-
 # assign test SNP from query SNPs
-# test_snp <- query_snps[1]
+test_snp <- query_snp_list[1]
 
 # define region around each risk SNP (query_snp column)
 make_d1 <- function(s) {
@@ -55,10 +53,10 @@ make_d1 <- function(s) {
 
 # apply to query snps list
 d1_list <- mclapply(query_snp_list, make_d1, mc.cores = 30)
-#----------------------------------
-# retina
-#----------------------------------
-# CURRANT
+#---------------------------------
+# retina--------------------------
+#---------------------------------
+# CURRANT-------------------------
 currant <- fread("data/summary_stats/retina/currant/GCIPL.tsv",
                  sep = "\t",
                  header = T)
@@ -76,7 +74,7 @@ make_currant_d2 <- function(s) {
     position = currant_snps$base_pair_location,
     type = "quant",
     MAF = currant_snps$effect_allele_frequency,
-    N = 21434,
+    N = 31434,
     p1=1, p2=1, p12=1
   )
   d2_file <- paste("data/processed/coloc/currant/", d1$query_snp, "_d2.rds", sep="")
@@ -84,12 +82,12 @@ make_currant_d2 <- function(s) {
   saveRDS(d2, d2_file)
   d2
 }
-d2_list <- mclapply(query_snp_list, make_currant_d2, mc.cores = 30)
+currant_d2_list <- mclapply(query_snp_list, make_currant_d2, mc.cores = 30)
 
 # run coloc for currant data
 run_coloc_currant <- function(s) {
   d1 <- d1_list[[s]]
-  d2 <- d2_list[[s]]
+  d2 <- currant_d2_list[[s]]
   res <- coloc.abf(dataset1 = d1,
                    dataset2 = d2)
   fwrite(res[1], file = paste("results/coloc/currant/", str_replace_all(s, ":", "_"), "_summary.csv", sep=""))
@@ -106,7 +104,7 @@ currant_res <- mclapply(query_snp_list, run_coloc_currant, mc.cores = 30)
 currant_res_sig <- compact(currant_res)
 names(currant_res_sig)
 #------------------------
-# RATNAPRIYA
+# RATNAPRIYA-----------------
 ratnapriya_files <- Sys.glob("data/summary_stats/retina/ratnapriya/new_nominal*.txt.gz")
 ratnapriya_list <- lapply(X = ratnapriya_files, FUN = fread)
 # helper function to prefilter so less memory
@@ -120,54 +118,86 @@ filter_ratnapriya <- function(dt) {
 }
 ratnapriya_filt_list <- mclapply(ratnapriya_list, filter_ratnapriya, mc.cores=30)
 ratnapriya_filt <- rbindlist(ratnapriya_filt_list)
-View(ratnapriya_filt[duplicated(ratnapriya_filt, by="BP_hg38")])
-ratnapriya_filt_list <- mclapply(X = ratnapriya_list, FUN = rename,
-                                 "ENSEMBL" = "V1",
-                                 "gene_chr" = "V2",
-                                 "gene_start" = "V3",
-                                 "gene_end"= "V4",
-                                 "strand" = "V5",
-                                 "n_variants" = "V6",
-                                 "distance" = "V7",
-                                 "rsIDchrpos" = "V8",
-                                 "var_chr" = "V9",
-                                 "var_start" = "V10",
-                                 "var_end" = "V11",
-                                 "P" = "V12",
-                                 "slope" = "V13",
-                                 "flag_most_sig" = "V14")
-ratnapriya <- ratnapriya %>%
-  mutate(BP_hg38 = paste(var_chr, ":", var_start, sep=""))
-# select SNPs that are also MS risk snps
-ratnapriya_msrisk <- ratnapriya[RiskSNPs[,c("RS_Number", "BP_hg38", "MAF_ms")], on = .(BP_hg38)]
-#---------------files for finding rsIDs-----------------------
-# bedops <- ratnapriya %>%
-#   filter(is.na(rsID)) %>%
-#   select(var_chr, var_start, var_end) %>%
-#   rename("chrom" = "var_chr",
-#          "from" = "var_start",
-#          "to" = "var_end")
-# fwrite(bedops, file = "data/processed/ratnapriya_missing_rs.bedtools.txt", sep = "\t", col.names = T)
-#------------------------------------------------------------------
-# add MAF_ms from ms_risk_snps
-mafs <- RiskSNPs[,c("RS_Number", "MAF_ms")] %>%
-  rename("rsID" = "RS_Number")
-setkey(mafs, rsID)
-setkey(ratnapriya, rsID)
-# filters to only the SNPs that have MAF_ms
-ratnapriya <- mafs[ratnapriya, on = .(rsID)]
+ratnapriya <- ratnapriya_filt %>%
+  rename(
+    "ENSEMBL" = "V1",
+    "gene_chr" = "V2",
+    "gene_start" = "V3",
+    "gene_end"= "V4",
+    "strand" = "V5",
+    "n_variants" = "V6",
+    "distance" = "V7",
+    "rsIDchrpos" = "V8",
+    "var_chr" = "V9",
+    "var_start" = "V10",
+    "var_end" = "V11",
+    "P" = "V12",
+    "slope" = "V13",
+    "flag_most_sig" = "V14"
+  )
 
-# remove mafs data.table to save memory
-remove(mafs)
 # write combined file to CSV
-fwrite(ratnapriya, "data/processed/ratnapriya_eQTL.csv")
+fwrite(ratnapriya, "data/processed/ratnapriya_eQTL_subset.csv")
+# need to make d2 for every gene
+# helper function to make d2
+make_ratnapriya_d2 <- function(dt) {
+  d2 <- list(
+    beta = dt$slope,
+    snp = dt$RS_Number,
+    position = dt$distance,
+    type = "quant",
+    MAF = dt$MAF_ms,
+    pvalues = dt$P,
+    N = 406,
+    gene = dt$ENSEMBL,
+    p1=1, p2=1, p12=1
+  )
+  d2
+}
+make_ratnapriya_d2_list <- function(s) {
+  d1 <- d1_list[[s]]
+  d1chrpos <- str_split(d1$query_snp, ":")[[1]]
+  ratnapriya_snps <- ratnapriya %>%
+    filter(RS_Number %in% d1$snp) %>%
+    filter((gene_chr==d1chrpos[1]) & (abs(gene_start - as.integer(d1chrpos[2])<=1000000))) %>%
+    group_by(ENSEMBL) %>%
+    group_split()
+  d2_by_gene <- lapply(ratnapriya_snps, make_ratnapriya_d2)
+  d2_file <- paste("data/processed/coloc/ratnapriya/", d1$query_snp, "_d2.rds", sep="")
+  d2_file <- str_replace_all(d2_file, ":", "_")
+  saveRDS(d2_by_gene, d2_file)
+  d2_by_gene
+}
+ratnapriya_d2_list <- mclapply(query_snp_list, make_ratnapriya_d2_list, mc.cores = 30)
+# helper to filter coloc.abf results
+filter_coloc_res <- function(r) {
+  if (r$summary["PP.H4.abf"] >= 0.2) {
+    r
+  }
+}
+run_coloc_ratnapriya <- function(s) {
+  d1 <- d1_list[[s]]
+  d2_list <- ratnapriya_d2_list[[s]]
+  res_list <- lapply(d2_list, function(d2) coloc.abf(dataset1 = d1, dataset2 = d2))
+  rds_file <- paste("results/coloc/ratnapriya/", d1$query_snp, "_res.rds", sep="")
+  rds_file <- str_replace_all(rds_file, ":", "_")
+  saveRDS(res_list, rds_file)
+  sig_res <- lapply(res_list, FUN = filter_coloc_res)
+  # compact to drop null
+  sig_res <- compact(sig_res)
+  sig_res
+}
+ratnapriya_res <- mclapply(query_snp_list, run_coloc_ratnapriya, mc.cores = 30)
+# compact to drop null results
+ratnapriya_res_sig <- compact(ratnapriya_res)
+#---------------------------------
+# STRUNZ--------------------------
+#---------------------------------
+# microglia-----------------------
 
 
-# microglia 
 
-
-
-
+# TEMPLATE CODE ------------------
 # cc=coloc.abf(
 #   dataset1=list(
 #     beta=BETA_MS_RISK,
