@@ -9,8 +9,8 @@ library(data.table)
 library(dplyr)
 library(ggplot2)
 
-# setwd("/home/shao11/data_kfitzg13/msgwas_shao11")
-setwd("~/OneDrive - Johns Hopkins/JHU-MBP/research/msgwas")
+setwd("/home/shao11/data_kfitzg13/msgwas_shao11")
+# setwd("~/OneDrive - Johns Hopkins/JHU-MBP/research/msgwas")
 
 # Load lukowski dataset
 luk_raw <- data.frame(fread(file = "data/sc_data/retina/lukowski/E-MTAB-7316.processed.4/ae_exp_raw_all.tsv",

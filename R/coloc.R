@@ -16,9 +16,9 @@ RiskSNPs <- fread("data/corrected_ms_risk_snps_imsgc_in_ld.csv",
                   header = T,
                   sep=",") 
 
-DiscoverySNPs <- fread("data/discovery_metav3.0.meta.maf.csv",
-                       header=T,
-                       sep=",")
+# DiscoverySNPs <- fread("data/discovery_metav3.0.meta.maf.csv",
+#                        header=T,
+#                        sep=",")
 
 query_snp_list <- unique(RiskSNPs$query_snp)
 names(query_snp_list) <- query_snp_list
@@ -138,6 +138,8 @@ ratnapriya <- ratnapriya_filt %>%
 
 # write combined file to CSV
 fwrite(ratnapriya, "data/processed/ratnapriya_eQTL_subset.csv")
+# load file
+ratnapriya <- fread("data/processed/ratnapriya_eQTL_subset.csv")
 # need to make d2 for every gene
 # helper function to make d2
 make_ratnapriya_d2 <- function(dt) {
@@ -171,7 +173,11 @@ make_ratnapriya_d2_list <- function(s) {
 ratnapriya_d2_list <- mclapply(query_snp_list, make_ratnapriya_d2_list, mc.cores = 30)
 # helper to filter coloc.abf results
 filter_coloc_res <- function(r) {
-  if (r$summary["PP.H4.abf"] >= 0.2) {
+  # if (r$summary["PP.H4.abf"] >= 0.2) {
+  #   r
+  # }
+  # for strong association
+  if (r$summary["PP.H4.abf"] >= 0.8) {
     r
   }
 }
@@ -179,6 +185,7 @@ run_coloc_ratnapriya <- function(s) {
   d1 <- d1_list[[s]]
   d2_list <- ratnapriya_d2_list[[s]]
   res_list <- lapply(d2_list, function(d2) coloc.abf(dataset1 = d1, dataset2 = d2))
+  names(res_list) <- lapply(d2_list, function(d2) unique(d2$gene[[1]]))
   rds_file <- paste("results/coloc/ratnapriya/", d1$query_snp, "_res.rds", sep="")
   rds_file <- str_replace_all(rds_file, ":", "_")
   saveRDS(res_list, rds_file)
@@ -188,8 +195,21 @@ run_coloc_ratnapriya <- function(s) {
   sig_res
 }
 ratnapriya_res <- mclapply(query_snp_list, run_coloc_ratnapriya, mc.cores = 30)
+# load ratnapriya results
+# ratnapriya_res_files <- Sys.glob("results/coloc/ratnapriya/*.rds")
+# names(ratnapriya_res_files) <- lapply(ratnapriya_res_files,
+                                      # function(x) str_extract(string = x,
+                                                            # pattern = "chr\\d{1,2}_[^_]+"))
+# ratnapriya_res <- mclapply(ratnapriya_res_files, readRDS)
 # compact to drop null results
 ratnapriya_res_sig <- compact(ratnapriya_res)
+saveRDS(ratnapriya_res_sig, "results/coloc/ratnapriya/sig_res_0.08.rds")
+
+helper <- function(r) {
+  top_vars <- lapply(r, function(x) x$results[order(x$results$SNP.PP.H4, decreasing=T)[1],])
+ }
+
+top_results <- lapply(ratnapriya_res_sig, helper)
 #---------------------------------
 # STRUNZ--------------------------
 #---------------------------------
