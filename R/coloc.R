@@ -101,8 +101,17 @@ run_coloc_currant <- function(s) {
 # test_currant <- run_coloc_currant(test_snp)
 # run for all SNPs
 currant_res <- mclapply(query_snp_list, run_coloc_currant, mc.cores = 30)
+# list of significant REGIONS
 currant_res_sig <- compact(currant_res)
 names(currant_res_sig)
+saveRDS(currant_res_sig, file = "results/coloc/currant/sig_regions.rds")
+# function to order SNPs by posterior probabilities and return top row
+order_SNPs <- function(res) {
+  o <- order(res$results$SNP.PP.H4,decreasing=TRUE)
+  res$results[o,][1,]
+}
+currant_sig_snps <- mclapply(currant_res_sig, order_SNPs, mc.cores=30)
+saveRDS(currant_sig_snps, file = "results/coloc/currant/sig_snps.rds")
 #------------------------
 # RATNAPRIYA-----------------
 ratnapriya_files <- Sys.glob("data/summary_stats/retina/ratnapriya/new_nominal*.txt.gz")
@@ -161,6 +170,7 @@ make_ratnapriya_d2_list <- function(s) {
   d1chrpos <- str_split(d1$query_snp, ":")[[1]]
   ratnapriya_snps <- ratnapriya %>%
     filter(RS_Number %in% d1$snp) %>%
+    # only include genes within 1Mb of the SNP
     filter((gene_chr==d1chrpos[1]) & (abs(gene_start - as.integer(d1chrpos[2])<=1000000))) %>%
     group_by(ENSEMBL) %>%
     group_split()
@@ -205,11 +215,16 @@ ratnapriya_res <- mclapply(query_snp_list, run_coloc_ratnapriya, mc.cores = 30)
 ratnapriya_res_sig <- compact(ratnapriya_res)
 saveRDS(ratnapriya_res_sig, "results/coloc/ratnapriya/sig_res_0.08.rds")
 
+# order_SNPs function returns the top SNP
+# apply to each gene
 helper <- function(r) {
-  top_vars <- lapply(r, function(x) x$results[order(x$results$SNP.PP.H4, decreasing=T)[1],])
+  top_vars <- lapply(r, order_SNPs)
+  top_vars <- lapply(top_vars, function(x) x$SNP.PP.H4)
  }
 
 top_results <- lapply(ratnapriya_res_sig, helper)
+ratnapriya_sig_snps <- lapply(top_results, compact)
+saveRDS(top_results, "results/coloc/ratnapriya/sig_snps.rds")
 #---------------------------------
 # STRUNZ--------------------------
 #---------------------------------
