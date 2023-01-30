@@ -39,7 +39,7 @@ eqtl_df <- data.frame(rsid=currant$variant_id, pval=currant$p_value) %>%
 
 gwas_fn = 'data/processed/chr19_47135282_gwas.tsv'
 eqtl_fn = 'data/processed/chr19_47135282_eqtl.tsv'
-write_tsv(gwas_df, file = 'data/processed/chr19_47135282_gwas.tsv')
-write_tsv(gwas_df, file = 'data/processed/chr19_47135282_eqtl.tsv')
+write_tsv(gwas_df, file = gwas_fn)
+write_tsv(eqtl_df, file = eqtl_fn)
 
 locuscompare(in_fn1=gwas_fn, in_fn2=eqtl_fn, title='GWAS', title2='eQTL')
