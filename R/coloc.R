@@ -15,6 +15,9 @@ setwd("~/data_kfitzg13/msgwas_shao11/")
 RiskSNPs <- fread("data/corrected_ms_risk_snps_imsgc_in_ld.csv",
                   header = T,
                   sep=",") 
+RiskSNPs <- RiskSNPs %>%
+  mutate(BETA=log(OR)) %>%
+  filter(!is.na(P))
 
 # DiscoverySNPs <- fread("data/discovery_metav3.0.meta.maf.csv",
 #                        header=T,
@@ -24,21 +27,36 @@ query_snp_list <- unique(RiskSNPs$query_snp)
 names(query_snp_list) <- query_snp_list
 
 # assign test SNP from query SNPs
-test_snp <- query_snp_list[1]
+# this is the one significant currant SNP
+test_snp <- 'chr19:47135282'
 
-# define region around each risk SNP (query_snp column)
-make_d1 <- function(s) {
+
+#---------------------------------
+# retina--------------------------
+#---------------------------------
+# CURRANT-------------------------
+currant <- fread("data/summary_stats/retina/currant/GCIPL.tsv",
+                 sep = "\t",
+                 header = T)
+currant <- currant %>%
+  mutate(varbeta = standard_error^2)
+
+# define region around each risk SNP (query_snp column), filter by currant SNPs
+make_currant_d1 <- function(s) {
   ld_snps <- RiskSNPs %>%
-    filter(query_snp == s)
+    filter(query_snp == s) %>%
+    filter(RS_Number %in% currant$variant_id) %>%
+    distinct(RS_Number, .keep_all = T)
   # lists for input into coloc
   d1 <- list(
-    MAF = ld_snps$MAF,
-    snp = ld_snps$RS_Number,
-    position = ld_snps$Distance,
+    snp = setNames(ld_snps$RS_Number, ld_snps$RS_Number),
+    beta = setNames(ld_snps$BETA, ld_snps$RS_Number),
+    MAF = setNames(ld_snps$MAF, ld_snps$RS_Number),
+    position = ld_snps$BP_hg19,
     type = "cc",
     N = 41505,
     s = 14802/41505,
-    pvalues = ld_snps$P,
+    pvalues = setNames(ld_snps$P, ld_snps$RS_Number),
     # add query_snp ID for tracking
     query_snp = s
   )
@@ -52,28 +70,19 @@ make_d1 <- function(s) {
 # test_d1 <- make_d1(test_snp)
 
 # apply to query snps list
-d1_list <- mclapply(query_snp_list, make_d1, mc.cores = 30)
-#---------------------------------
-# retina--------------------------
-#---------------------------------
-# CURRANT-------------------------
-currant <- fread("data/summary_stats/retina/currant/GCIPL.tsv",
-                 sep = "\t",
-                 header = T)
-currant <- currant %>%
-  mutate(varbeta = standard_error^2)
+currant_d1_list <- mclapply(query_snp_list, make_currant_d1, mc.cores = 20)
 # d2 for currant
 make_currant_d2 <- function(s) {
-  d1 <- d1_list[[s]]
+  d1 <- currant_d1_list[[s]]
   currant_snps <- currant %>%
     filter(variant_id %in% d1$snp)
   d2 <- list(
-    beta = currant_snps$beta,
-    varbeta = currant_snps$varbeta,
-    snp = currant_snps$variant_id,
+    snp = setNames(currant_snps$variant_id, currant_snps$variant_id),
+    beta = setNames(currant_snps$beta, currant_snps$variant_id),
+    varbeta = setNames(currant_snps$varbeta, currant_snps$variant_id),
     position = currant_snps$base_pair_location,
     type = "quant",
-    MAF = currant_snps$effect_allele_frequency,
+    MAF = setNames(currant_snps$effect_allele_frequency, currant_snps$variant_id),
     N = 31434,
     p1=1, p2=1, p12=1
   )
@@ -82,14 +91,16 @@ make_currant_d2 <- function(s) {
   saveRDS(d2, d2_file)
   d2
 }
-currant_d2_list <- mclapply(query_snp_list, make_currant_d2, mc.cores = 30)
+currant_d2_list <- mclapply(query_snp_list, make_currant_d2, mc.cores = 20)
 
 # run coloc for currant data
+# only return if strong posterior probability
 run_coloc_currant <- function(s) {
-  d1 <- d1_list[[s]]
+  d1 <- currant_d1_list[[s]]
   d2 <- currant_d2_list[[s]]
   res <- coloc.abf(dataset1 = d1,
                    dataset2 = d2)
+  saveRDS(res, file=paste("results/coloc/currant/", str_replace_all(s, ":", "_"), "_res.rds", sep=""))
   fwrite(res[1], file = paste("results/coloc/currant/", str_replace_all(s, ":", "_"), "_summary.csv", sep=""))
   fwrite(res[2], file = paste("results/coloc/currant/", str_replace_all(s, ":", "_"), "_results.csv", sep=""))
   H4 <- res$summary["PP.H4.abf"]
@@ -97,10 +108,21 @@ run_coloc_currant <- function(s) {
     res
   }
 }
+
+# for (s in query_snp_list) {
+#   print(s)
+#   check_dataset(currant_d1_list[[s]])
+# }
+
+# test_d1 <- currant_d1_list[[test_snp]]
+# test_d2 <- currant_d2_list[[test_snp]]
+
+
 # test function
-# test_currant <- run_coloc_currant(test_snp)
+test_currant <- run_coloc_currant(test_snp)
+plot(test_currant)
 # run for all SNPs
-currant_res <- mclapply(query_snp_list, run_coloc_currant, mc.cores = 30)
+currant_res <- mclapply(query_snp_list, run_coloc_currant, mc.cores = 20)
 # list of significant REGIONS
 currant_res_sig <- compact(currant_res)
 names(currant_res_sig)
