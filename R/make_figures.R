@@ -2,6 +2,7 @@ library(dplyr)
 library(readr)
 library(ggplot2)
 library(RColorBrewer)
+library(viridis)
 library(coloc)
 library(data.table)
 library(eQTpLot)
@@ -17,20 +18,20 @@ setwd('/data/kfitzg13/msgwas_shao11/')
 retina_gsa <- read_table("results/magma/gsa/retina.gsa.out", skip=4)
 
 retina_gsa <- retina_gsa %>% 
-  mutate(`-log(p)`= -log(P), VARIABLE) %>%
+  mutate(`-log10(p)`= -log10(P)) %>%
   mutate(significant=ifelse(P<0.05, 1, 0))
 
 p <- retina_gsa %>%
-  ggplot(aes(x=reorder(VARIABLE, `-log(p)`), y=`-log(p)`)) +
+  ggplot(aes(x=reorder(VARIABLE, `-log10(p)`), y=`-log10(p)`)) +
   geom_bar(stat = "identity", aes(fill=factor(significant))) +
-  scale_fill_manual(values = c('black', 'red')) +
+  scale_fill_manual(values=viridis(2)) +
   coord_flip() +
   theme(legend.position = 'none') +
-  xlab('Cell Type')
-
+  xlab('Cell Type') +
+  labs(title = 'GSEA from scRNA-seq and GWAS') 
 p
-ggsave('figures/retina_GSA.pdf', p, width=6, height=4)
-ggsave('figures/retina_GSA.svg', p, width=6, height=4)
+ggsave('figures/retina_GSA.pdf', p, width=6, height=4.5)
+ggsave('figures/retina_GSA.svg', p, width=6, height=4.5)
 #---------------------
 # Coloc data
 #---------------------
@@ -94,5 +95,5 @@ saveRDS(LD_df, "data/processed/eqtplot/LD_df.rds")
 saveRDS(gwas_df, "data/processed/eqtplot/gwas_df.rds")
 saveRDS(eQTL_df, "data/processed/eqtplot/eqtl_df.rds")
 
-eQTpLot(GWAS.df = gwas_df, eQTL.df = eQTL_df, gene = c("SAE1"),
+eQTpLot(GWAS.df = gwas_df, eQTL.df = eQTL_df, gene = c("ZNF438"),
         gbuild="hg19", tissue="Retinal", trait="MS", range=1000)
