@@ -9,6 +9,7 @@ library(eQTpLot)
 library(EnsDb.Hsapiens.v86)
 library(stringr)
 library(tidyr)
+library(patchwork)
 
 
 setwd('/data/kfitzg13/msgwas_shao11/')
@@ -67,7 +68,7 @@ annots <- annots %>%
 
 rat_sym <- left_join(ratnapriya, annots, by=c("ENSEMBL"="GENEID"))
 write_csv(rat_sym, "data/processed/ratnapriya_eQTL_subset_symbols.csv")
-
+rat_sym <- fread("data/processed/ratnapriya_eQTL_subset_symbols.csv")
 # make eQTL df
 eQTL_df <- rat_sym %>%
   mutate(SNP.Id=RS_Number, Gene.Symbol=SYMBOL, P.Value=P, NES=slope, Tissue="Retinal", N=406) %>%
@@ -94,6 +95,17 @@ gwas_df <- RiskSNPs %>%
 saveRDS(LD_df, "data/processed/eqtplot/LD_df.rds")
 saveRDS(gwas_df, "data/processed/eqtplot/gwas_df.rds")
 saveRDS(eQTL_df, "data/processed/eqtplot/eqtl_df.rds")
-
-eQTpLot(GWAS.df = gwas_df, eQTL.df = eQTL_df, gene = c("ZNF438"),
+#--------READ IN RDS-------
+LD_df <- readRDS("data/processed/eqtplot/LD_df.rds")
+gwas_df <- readRDS("data/processed/eqtplot/gwas_df.rds")
+eQTL_df <- readRDS("data/processed/eqtplot/eqtl_df.rds")
+#--------------------------
+p <- eQTpLot(GWAS.df = gwas_df, eQTL.df = eQTL_df, gene = c("SAE1"),
         gbuild="hg19", tissue="Retinal", trait="MS", range=1000)
+
+p[[1]] <- p[[1]] + 
+            theme(legend.position = "bottom")
+
+p <- p + plot_annotation(title = "eQTpLot analysis for Multiple Sclerosis and SAE1\nIn Retina")
+ggsave(p, filename="SAE1.MS.Retinal.WithoutCongruenceData.WithoutLinkageData.eQTpLot.svg",
+       units="in", height=13, width = 11)
