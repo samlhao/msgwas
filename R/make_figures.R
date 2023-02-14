@@ -1,6 +1,8 @@
 library(dplyr)
 library(readr)
 library(ggplot2)
+library(ggrepel)
+library(ggthemes)
 library(RColorBrewer)
 library(viridis)
 library(coloc)
@@ -17,22 +19,55 @@ setwd('/data/kfitzg13/msgwas_shao11/')
 # GSA results
 #-----------------------
 retina_gsa <- read_table("results/magma/gsa/retina.gsa.out", skip=4)
+xs_gsa <- read_table("results/magma/oct_gsa/retina_cross_sectional_results.gsa.out", skip=4)
+long_gsa <- read_table("results/magma/oct_gsa/retina_longitudinal_results.gsa.out", skip=4)
 
 retina_gsa <- retina_gsa %>% 
   mutate(`-log10(p)`= -log10(P)) %>%
   mutate(significant=ifelse(P<0.05, 1, 0))
-
-p <- retina_gsa %>%
+xs_gsa <- xs_gsa %>% 
+  mutate(`-log10(p)`= -log10(P)) %>%
+  mutate(significant=ifelse(P<0.05, 1, 0))
+long_gsa <- long_gsa %>% 
+  mutate(`-log10(p)`= -log10(P)) %>%
+  mutate(significant=ifelse(P<0.05, 1, 0))
+p1 <- retina_gsa %>%
   ggplot(aes(x=reorder(VARIABLE, `-log10(p)`), y=`-log10(p)`)) +
   geom_bar(stat = "identity", aes(fill=factor(significant))) +
   scale_fill_manual(values=viridis(2)) +
   coord_flip() +
-  theme(legend.position = 'none') +
+  theme(legend.position = 'none',
+        plot.title = element_text(size = 10)) +
   xlab('Cell Type') +
-  labs(title = 'GSEA from scRNA-seq and GWAS') 
+  labs(title = 'MS Risk GWAS') 
+p2 <- xs_gsa %>%
+  ggplot(aes(x=reorder(VARIABLE, `-log10(p)`), y=`-log10(p)`)) +
+  geom_bar(stat = "identity", aes(fill=factor(significant))) +
+  scale_fill_manual(values=viridis(2)) +
+  coord_flip() +
+  theme(legend.position = 'none',
+        plot.title = element_text(size = 10)) +
+  xlab('') +
+  labs(title = 'Cross-Sectional OCT GWAS') 
+p3 <- long_gsa %>%
+  ggplot(aes(x=reorder(VARIABLE, `-log10(p)`), y=`-log10(p)`)) +
+  geom_bar(stat = "identity", aes(fill=factor(significant))) +
+  scale_fill_manual(values=viridis(2)) +
+  coord_flip() +
+  theme(legend.position = 'none',
+        plot.title = element_text(size = 10)) +
+  xlab('') +
+  labs(title = 'Longitudinal OCT GWAS') 
+
+ggsave('figures/retina_GSA.svg', p1, width=6, height=4.5)
+ggsave('figures/retina_cross_sectional_GSA.svg', p2, width=6, height=4.5)
+ggsave('figures/retina_longitudinal_GSA.svg', p3, width=6, height=4.5)
+
+oct_plot <- p2+p3
+
+p <- p1 / oct_plot + plot_annotation(tag_levels = "A")
 p
-ggsave('figures/retina_GSA.pdf', p, width=6, height=4.5)
-ggsave('figures/retina_GSA.svg', p, width=6, height=4.5)
+ggsave('figures/retina_gsa_all.svg', p, height = 13, width = 9)
 #---------------------
 # Coloc data
 #---------------------
@@ -100,6 +135,9 @@ LD_df <- readRDS("data/processed/eqtplot/LD_df.rds")
 gwas_df <- readRDS("data/processed/eqtplot/gwas_df.rds")
 eQTL_df <- readRDS("data/processed/eqtplot/eqtl_df.rds")
 #--------------------------
+eQTpLot(GWAS.df = gwas_df, eQTL.df = eQTL_df, gene = c("SAE1", "ZNF438", "TBX6"),
+        gbuild="hg19", trait = "MS", tissue = "Retinal", CollapseMethod = "min", 
+        GeneList = T)
 p <- eQTpLot(GWAS.df = gwas_df, eQTL.df = eQTL_df, gene = c("SAE1"),
         gbuild="hg19", tissue="Retinal", trait="MS", range=1000)
 
@@ -108,4 +146,38 @@ p[[1]] <- p[[1]] +
 
 p <- p + plot_annotation(title = "eQTpLot analysis for Multiple Sclerosis and SAE1\nIn Retina")
 ggsave(p, filename="SAE1.MS.Retinal.WithoutCongruenceData.WithoutLinkageData.eQTpLot.svg",
-       units="in", height=13, width = 11)
+       units="in", height=13, width = 9)
+
+#-------Coloc results table-----
+currant_df <- read_csv("results/coloc/currant/sig_snps.csv")
+currant_df$trait <- "Retinal thickness"
+ratnapriya_df <- read_csv("results/coloc/ratnapriya/sig_snps.csv")
+# convert ENSEMBL
+annots <- select(EnsDb.Hsapiens.v86, keys = ratnapriya_df$ENSEMBL,
+                 columns=c("SYMBOL"), keytype="GENEID")
+annots <- annots %>%
+  distinct()
+
+ratnapriya_df <- left_join(ratnapriya_df, annots, by=c("ENSEMBL"="GENEID"))
+ratnapriya_df$trait <- ratnapriya_df$SYMBOL
+coloc_res <- bind_rows(currant_df, ratnapriya_df) %>%
+  dplyr::select(c(snp, region, trait, SNP.PP.H4)) %>%
+  arrange(desc(SNP.PP.H4))
+write_csv(coloc_res, file = "results/coloc/sig_snps_all.csv")
+
+p <- ggplot(coloc_res, aes(snp, SNP.PP.H4)) +
+  geom_point(size = 5) +
+  geom_point(data = subset(coloc_res, SNP.PP.H4 > 0.8),
+             color = "red",
+             size = 5) +
+  geom_label_repel(data = subset(coloc_res, SNP.PP.H4 > 0.8),
+                   aes(label=trait),
+                   size = 8) +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1),
+        axis.text = element_text(size=20),
+        axis.title = element_text(size = 20),
+        title = element_text(size = 35)) +
+  labs(title = "Colocalization Results")
+
+ggsave("figures/coloc_snps.svg", p, width=15, height=9, bg="transparent")
+ggsave("figures/coloc_snps.png", p, width=15, height=9, bg = "transparent")

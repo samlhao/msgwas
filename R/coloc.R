@@ -134,6 +134,10 @@ order_SNPs <- function(res) {
 }
 currant_sig_snps <- mclapply(currant_res_sig, order_SNPs, mc.cores=30)
 saveRDS(currant_sig_snps, file = "results/coloc/currant/sig_snps.rds")
+currant_df <- as.data.frame(do.call(rbind, currant_sig_snps))
+currant_df <- currant_df[order(currant_df$SNP.PP.H4, decreasing = T),]
+currant_df$region <- rownames(currant_df)
+write_csv(currant_df, file="results/coloc/currant/sig_snps.csv")
 #------------------------
 # RATNAPRIYA-----------------
 ratnapriya_files <- Sys.glob("data/summary_stats/retina/ratnapriya/new_nominal*.txt.gz")
@@ -237,6 +241,7 @@ ratnapriya_res <- mclapply(query_snp_list, run_coloc_ratnapriya, mc.cores = 30)
 ratnapriya_res_sig <- compact(ratnapriya_res)
 saveRDS(ratnapriya_res_sig, "results/coloc/ratnapriya/sig_res_0.08.rds")
 
+
 # order_SNPs function returns the top SNP
 # apply to each gene
 helper <- function(r) {
@@ -247,6 +252,15 @@ helper <- function(r) {
 top_results <- lapply(ratnapriya_res_sig, helper)
 ratnapriya_sig_snps <- lapply(top_results, compact)
 saveRDS(top_results, "results/coloc/ratnapriya/sig_snps.rds")
+
+ratnapriya_results <- unlist(ratnapriya_sig_snps, recursive = F)
+ratnapriya_df <- as.data.frame(do.call(rbind, ratnapriya_results))
+ratnapriya_df <- ratnapriya_df[order(ratnapriya_df$SNP.PP.H4, decreasing = T),]
+ratnapriya_df$idx <- rownames(ratnapriya_df)
+ratnapriya_df <- ratnapriya_df %>%
+  mutate(ENSEMBL = str_extract(idx, "ENSG.+"), region = str_extract(idx, "chr[^\\.]+")) %>%
+  dplyr::select(-c(idx))
+write_csv(ratnapriya_df, file = "results/coloc/ratnapriya/sig_snps.csv")
 #---------------------------------
 # STRUNZ--------------------------
 #---------------------------------
