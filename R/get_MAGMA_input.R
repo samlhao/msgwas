@@ -30,6 +30,7 @@ magma_genes <- rownames(specificity)[rownames(specificity) %in% gene_coordinates
 specificity <- specificity[magma_genes,]
 write.csv(specificity, file = "data/processed/retina_MAGMA_specificity.csv")
 # convert gene symbols to ENTREZ ids
+specificity <- read.csv("data/processed/retina_MAGMA_specificity.csv", row.names = 1)
 ENTREZ_specificity <- as.data.frame(specificity) %>%
   rownames_to_column(var = "symbol") %>%
   inner_join(gene_coordinates, by = "symbol") %>%
@@ -41,6 +42,13 @@ top10 <- apply(ENTREZ_specificity,
       2,
       function(x) head(row.names(ENTREZ_specificity)[order(x, decreasing = T)],
                        n_genes))
+# matrix with symbols for reference
+top10_w_symbols <- apply(specificity,
+                         2,
+                         function(x) head(row.names(specificity)[order(x, decreasing = T)],
+                                          n_genes))
+write_tsv(rownames_to_column(as.data.frame(t(top10_w_symbols)), var = "cell_type"),
+          file = "data/processed/retina_MAGMA_genesets_symbols.bed", col_names = F)
 # write gene sets to file for input to MAGMA
 magma_genesets <- rownames_to_column(as.data.frame(t(top10)), var = "cell_type")
 write_tsv(magma_genesets, file = "data/processed/retina_MAGMA_genesets.bed", col_names = F)

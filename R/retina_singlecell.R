@@ -1,6 +1,6 @@
-# This script integrates the menon and lukowski datasets
-# for retina using Seurat v3.
-# It then performs an integrated analysis.
+# Seperately assign cell types in menon and lukowski datasets
+# vs. Integrate the menon and lukowski datasets for retina using Seurat v3
+# and perform integrated analysis.
 
 # load libraries
 library(Seurat)
